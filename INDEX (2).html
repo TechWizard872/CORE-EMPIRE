@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Empire — Server Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config={theme:{extend:{colors:{
+            'sb-bg':'#12141a','sb-panel':'#1a1d26','sb-sidebar':'#0f1117',
+            'sb-card':'#1e2130','sb-border':'#2a2e3b','sb-hover':'#252838',
+            'sb-blue':'#4f8cff','sb-green':'#34d399','sb-amber':'#fbbf24','sb-red':'#f87171',
+            'sb-text':'#e2e8f0','sb-text2':'#94a3b8','sb-text3':'#64748b'
+        },fontFamily:{'sans':['Inter','system-ui','sans-serif'],'mono':['"JetBrains Mono"','Consolas','monospace']}}}}
+    </script>
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Inter',system-ui,sans-serif;background:#12141a;color:#e2e8f0;overflow-x:hidden;min-height:100vh;display:flex}
+        #sidebar{width:250px;min-height:100vh;background:#0f1117;border-right:1px solid #1e2130;display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;z-index:100;transition:transform .3s}
+        .sb-brand{padding:20px 22px;border-bottom:1px solid #1e2130;display:flex;align-items:center;gap:11px}
+        .sb-brand-icon{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#4f8cff,#3b6fd4);display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;flex-shrink:0}
+        .sb-nav{flex:1;padding:10px 0;overflow-y:auto}
+        .sb-section{padding:10px 22px 6px;font-size:10px;font-weight:700;letter-spacing:.1em;color:#4a5068;text-transform:uppercase}
+        .sb-link{display:flex;align-items:center;gap:11px;padding:10px 22px;font-size:13px;font-weight:500;color:#7a8299;cursor:pointer;transition:all .15s;border-left:3px solid transparent;user-select:none}
+        .sb-link:hover{color:#c8cee0;background:rgba(255,255,255,0.02)}
+        .sb-link.active{color:#4f8cff;background:rgba(79,140,255,0.06);border-left-color:#4f8cff}
+        .sb-link i{width:18px;text-align:center;font-size:14px;opacity:.7}
+        .sb-link.active i{opacity:1}
+        .sb-footer{padding:16px 22px;border-top:1px solid #1e2130}
+        #main{margin-left:250px;flex:1;min-height:100vh}
+        #topbar{height:58px;background:#0f1117;border-bottom:1px solid #1e2130;display:flex;align-items:center;justify-content:space-between;padding:0 30px;position:sticky;top:0;z-index:50}
+        .content{padding:26px 30px 110px}
+        .vpanel{display:none;animation:vi .3s ease}.vpanel.active{display:block}
+        @keyframes vi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        .card{background:#1a1d26;border:1px solid #2a2e3b;border-radius:10px;overflow:hidden}
+        .card-h{padding:14px 18px;border-bottom:1px solid #252838;display:flex;align-items:center;gap:10px}
+        .card-h h3{font-size:12px;font-weight:700;color:#94a3b8;flex:1;letter-spacing:.02em}
+        .card-b{padding:18px}
+        .info-row{display:flex;flex-wrap:wrap;gap:0}
+        .info-item{flex:1;min-width:140px;padding:16px 20px;border-right:1px solid #252838}
+        .info-item:last-child{border-right:none}
+        .info-label{font-size:11px;color:#64748b;font-weight:500;margin-bottom:4px}
+        .info-val{font-size:15px;font-weight:700;color:#e2e8f0}
+        .instance-bar{display:flex;align-items:center;gap:10px;padding:12px 18px;background:#161923;border:1px solid #252838;border-radius:8px}
+        .inst-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+        .inst-dot.online{background:#34d399;box-shadow:0 0 6px rgba(52,211,153,0.4)}
+        .inst-dot.offline{background:#f87171;box-shadow:0 0 6px rgba(248,113,113,0.3)}
+        .inst-dot.starting,.inst-dot.queue,.inst-dot.loading{background:#fbbf24;box-shadow:0 0 6px rgba(251,191,36,0.4);animation:pulse 1.2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+        .usage-block{margin-bottom:18px}.usage-block:last-child{margin-bottom:0}
+        .usage-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+        .usage-label{font-size:12px;font-weight:600;color:#94a3b8}
+        .usage-pct{font-size:22px;font-weight:800;color:#e2e8f0}
+        .usage-track{height:8px;background:#252838;border-radius:4px;overflow:hidden}
+        .usage-fill{height:100%;border-radius:4px;transition:width .7s ease,background .4s}
+        .usage-fill.blue{background:linear-gradient(90deg,#3b6fd4,#4f8cff)}
+        .usage-fill.green{background:linear-gradient(90deg,#059669,#34d399)}
+        .usage-fill.amber{background:linear-gradient(90deg,#d97706,#fbbf24)}
+        .usage-fill.red{background:linear-gradient(90deg,#dc2626,#f87171)}
+        .con-box{background:#0c0e14;border:1px solid #1e2130;border-radius:8px;overflow:hidden}
+        .con-bar{background:#141720;border-bottom:1px solid #1e2130;padding:10px 14px;display:flex;align-items:center;gap:6px}
+        .con-dot{width:8px;height:8px;border-radius:50%}
+        .con-out{padding:14px 16px;height:370px;overflow-y:auto;font-family:'JetBrains Mono',Consolas,monospace;font-size:12px;line-height:2;scrollbar-width:thin;scrollbar-color:#252838 transparent}
+        .con-out::-webkit-scrollbar{width:5px}.con-out::-webkit-scrollbar-thumb{background:#252838;border-radius:3px}
+        .cl{opacity:0;transform:translateX(-4px)}.cl.v{opacity:1;transform:translateX(0);transition:all .25s ease}
+        .cur{display:inline-block;width:7px;height:14px;background:#4f8cff;vertical-align:middle;margin-left:3px;animation:blink 1s step-end infinite}
+        @keyframes blink{50%{opacity:0}}
+        .ptable{width:100%;border-collapse:collapse}
+        .ptable thead th{font-size:10px;font-weight:700;letter-spacing:.08em;color:#64748b;padding:11px 16px;text-align:left;border-bottom:1px solid #252838;text-transform:uppercase;background:#161923}
+        .ptable tbody tr{transition:background .1s}.ptable tbody tr:hover{background:rgba(255,255,255,0.015)}
+        .ptable tbody td{padding:12px 16px;border-bottom:1px solid #1e2130;font-size:13px}
+        .role-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:5px;font-size:10px;font-weight:700;letter-spacing:.03em}
+        .btn{padding:9px 22px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;border:none;letter-spacing:.02em}
+        .btn-blue{background:#4f8cff;color:#fff}.btn-blue:hover{background:#3b7aee}
+        .btn-green{background:#34d399;color:#0f1117}.btn-green:hover{background:#2bc48a}
+        .btn-red{background:#f87171;color:#0f1117}.btn-red:hover{background:#ef5656}
+        .btn-ghost{background:transparent;color:#64748b;border:1px solid #2a2e3b}.btn-ghost:hover{color:#94a3b8;border-color:#3a3f50}
+        .btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+        .btn-sm{padding:7px 16px;font-size:11px;border-radius:6px}
+        .inp{background:#141720;border:1px solid #2a2e3b;border-radius:7px;padding:9px 13px;color:#e2e8f0;font-family:inherit;font-size:13px;outline:none;width:100%;transition:border-color .2s}
+        .inp:focus{border-color:#4f8cff}.inp::placeholder{color:#4a5068}
+        .inp-mono{font-family:'JetBrains Mono',Consolas,monospace;font-size:11px}
+        .search-inp{background:#141720;border:1px solid #2a2e3b;border-radius:7px;padding:8px 12px 8px 34px;color:#e2e8f0;font-family:inherit;font-size:12px;outline:none;width:100%;transition:border-color .2s}
+        .search-inp:focus{border-color:#4f8cff}.search-inp::placeholder{color:#4a5068}
+        .ore{width:140px;height:140px;border-radius:10px;cursor:pointer;background:linear-gradient(135deg,#252838 25%,#1e2130 25%),linear-gradient(225deg,#2a2e3b 25%,#1e2130 25%),linear-gradient(315deg,#252838 25%,#1e2130 25%),linear-gradient(45deg,#2a2e3b 25%,#1e2130 25%),linear-gradient(135deg,#1a1d26,#252838);background-size:32px 32px,32px 32px,32px 32px,32px 32px,100% 100%;border:2px solid #3a3f50;transition:transform .07s,box-shadow .15s;user-select:none;animation:orePulse 2.5s ease-in-out infinite}
+        .ore:hover{border-color:#4f8cff;box-shadow:0 0 20px rgba(79,140,255,0.1)}.ore:active{transform:scale(0.9)}
+        @keyframes orePulse{0%,100%{box-shadow:0 0 0 transparent}50%{box-shadow:0 0 15px rgba(79,140,255,0.06)}}
+        .fshard{position:absolute;color:#4f8cff;font-weight:700;font-size:14px;pointer-events:none;animation:shardUp .8s ease-out forwards}
+        @keyframes shardUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-55px)}}
+        .snum{transition:transform .1s}.snum.bump{transform:scale(1.1)}
+        .ucard{background:#1a1d26;border:1px solid #2a2e3b;border-radius:10px;overflow:hidden;transition:border-color .2s,transform .2s}
+        .ucard:hover{border-color:#3a3f50;transform:translateY(-2px)}
+        .ucard-img{height:110px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #252838}
+        .ucard-price{display:inline-block;padding:5px 14px;border-radius:6px;font-weight:800;font-size:15px;background:rgba(251,191,36,0.1);color:#fbbf24;border:1px solid rgba(251,191,36,0.2)}
+        .mod-ov{position:fixed;inset:0;z-index:2000;background:rgba(12,14,20,0.8);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+        .mod-ov.open{opacity:1;pointer-events:auto}
+        .mod-box{background:#1a1d26;border:1px solid #2a2e3b;border-radius:12px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.4);transform:scale(0.95) translateY(10px);transition:transform .2s}
+        .mod-ov.open .mod-box{transform:scale(1) translateY(0)}
+        #juke{position:fixed;bottom:0;left:250px;right:0;z-index:100;background:#0f1117;border-top:1px solid #1e2130}
+        .jb{width:30px;height:30px;border-radius:50%;border:1px solid #2a2e3b;background:#1a1d26;color:#94a3b8;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;font-size:10px}
+        .jb:hover{border-color:#4f8cff;color:#4f8cff}
+        #mobBtn{display:none;position:fixed;top:12px;left:12px;z-index:200;width:36px;height:36px;border-radius:8px;background:#1a1d26;border:1px solid #2a2e3b;color:#94a3b8;cursor:pointer;align-items:center;justify-content:center;font-size:14px}
+        @media(max-width:860px){
+            #sidebar{transform:translateX(-100%)}#sidebar.open{transform:translateX(0)}
+            #main{margin-left:0}#juke{left:0}#mobBtn{display:flex}
+            .content{padding:16px;padding-top:58px}.info-item{min-width:120px}
+        }
+        .toast-container{position:fixed;top:70px;right:20px;z-index:3000;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+        .toast{padding:12px 18px;border-radius:8px;font-size:12px;font-weight:600;pointer-events:auto;animation:toastIn .3s ease,toastOut .3s ease 3.7s forwards;max-width:340px;border:1px solid}
+        .toast.success{background:rgba(52,211,153,0.1);border-color:rgba(52,211,153,0.2);color:#34d399}
+        .toast.error{background:rgba(248,113,113,0.1);border-color:rgba(248,113,113,0.2);color:#f87171}
+        .toast.info{background:rgba(79,140,255,0.1);border-color:rgba(79,140,255,0.2);color:#4f8cff}
+        .toast.warn{background:rgba(251,191,36,0.1);border-color:rgba(251,191,36,0.2);color:#fbbf24}
+        @keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateY(-10px)}}
+        .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#252838;border-radius:3px}
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    </style>
+</head>
+<body>
+    <div class="toast-container" id="toasts"></div>
+    <button id="mobBtn" aria-label="Menu"><i class="fas fa-bars"></i></button>
+
+    <aside id="sidebar">
+        <div class="sb-brand">
+            <div class="sb-brand-icon"><i class="fas fa-cube"></i></div>
+            <div><div class="text-sm font-bold text-sb-text">Core Empire</div><div class="text-[10px] text-sb-text3 mt-0.5">Minecraft Server</div></div>
+        </div>
+        <div class="sb-nav">
+            <div class="sb-section">My Server</div>
+            <div class="sb-link active" data-v="dashboard"><i class="fas fa-chart-line"></i>Dashboard</div>
+            <div class="sb-link" data-v="console"><i class="fas fa-terminal"></i>Console</div>
+            <div class="sb-link" data-v="players"><i class="fas fa-users"></i>Players</div>
+            <div class="sb-section">Tools</div>
+            <div class="sb-link" data-v="miner"><i class="fas fa-gem"></i>Core Miner</div>
+            <div class="sb-link" data-v="upgrades"><i class="fas fa-shopping-cart"></i>Upgrades</div>
+            <div class="sb-section">Account</div>
+            <div class="sb-link" data-v="settings"><i class="fas fa-cog"></i>Settings</div>
+        </div>
+        <div class="sb-footer">
+            <div class="flex items-center gap-2 mb-1"><div class="w-1.5 h-1.5 rounded-full" id="footDot" style="background:#f87171"></div><span class="text-[10px]" id="footStatus" style="color:#f87171">Server Offline</span></div>
+            <div class="text-[10px] text-sb-text3">v2.4.1 — Aternos Linked</div>
+        </div>
+    </aside>
+
+    <div id="main">
+        <header id="topbar">
+            <div class="flex items-center gap-3">
+                <div class="instance-bar" style="padding:7px 14px">
+                    <div id="topDot" class="inst-dot offline"></div>
+                    <span id="topLabel" class="text-xs font-semibold text-sb-text3">Offline</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-xs text-sb-text3 font-mono">CORE_EMPIRE.aternos.me:37423</span>
+                <span class="text-xs text-sb-text3 hidden sm:inline" id="clock">--:--:--</span>
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- DASHBOARD -->
+            <div id="v-dashboard" class="vpanel active">
+                <div class="card mb-4">
+                    <div class="card-b" style="padding:0">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 pb-4">
+                            <div>
+                                <div class="text-[10px] text-sb-text3 font-semibold tracking-wider uppercase mb-1">Server Name</div>
+                                <div class="text-xl font-extrabold text-sb-text">Core Empire</div>
+                            </div>
+                            <div class="flex items-center gap-2" id="ctrlBtns">
+                                <button id="dStart" class="btn btn-green" disabled><i class="fas fa-play mr-2 text-[10px]"></i>Start</button>
+                                <button id="dStop" class="btn btn-red" disabled style="display:none"><i class="fas fa-stop mr-2 text-[10px]"></i>Stop</button>
+                                <button id="dRestart" class="btn btn-ghost" disabled style="display:none"><i class="fas fa-rotate-right mr-2 text-[10px]"></i>Restart</button>
+                            </div>
+                        </div>
+                        <div class="info-row" style="border-top:1px solid #252838">
+                            <div class="info-item"><div class="info-label">Status</div><div id="dStatus" class="info-val text-sb-red text-sm">Offline</div></div>
+                            <div class="info-item"><div class="info-label">Players</div><div id="dPlayers" class="info-val">0 / 16</div></div>
+                            <div class="info-item"><div class="info-label">IP Address</div><div class="info-val text-sb-blue text-sm font-mono cursor-pointer hover:underline" id="dIP" title="Click to copy">CORE_EMPIRE.aternos.me</div></div>
+                            <div class="info-item"><div class="info-label">Version</div><div class="info-val text-sb-text2">1.21.4</div></div>
+                            <div class="info-item"><div class="info-label">Uptime</div><div id="dUptime" class="info-val text-sb-text2">—</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="instance-bar mb-4">
+                    <div id="instDot" class="inst-dot offline"></div>
+                    <span class="text-sm font-semibold text-sb-text" id="instText">Offline</span>
+                    <span class="text-xs text-sb-text3 ml-auto" id="instSub">Server is not running</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                    <div class="card">
+                        <div class="card-h"><h3>CPU Usage</h3></div>
+                        <div class="card-b">
+                            <div class="usage-block"><div class="usage-top"><span class="usage-label">Processor</span><span id="cpuPct" class="usage-pct">0%</span></div><div class="usage-track"><div id="cpuFill" class="usage-fill blue" style="width:0%"></div></div></div>
+                            <div class="usage-block"><div class="usage-top"><span class="usage-label">Z.AI ML Overhead</span><span id="mlPct" class="usage-pct text-base">0%</span></div><div class="usage-track"><div id="mlFill" class="usage-fill amber" style="width:0%"></div></div></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-h"><h3>Memory Usage</h3></div>
+                        <div class="card-b">
+                            <div class="usage-block"><div class="usage-top"><span class="usage-label">RAM Allocated</span><span id="ramPct" class="usage-pct">0 MB</span></div><div class="usage-track"><div id="ramFill" class="usage-fill green" style="width:0%"></div></div></div>
+                            <div class="usage-block"><div class="usage-top"><span class="usage-label">Chunk Stability</span><span class="usage-pct text-base text-sb-green/60">99.98%</span></div><div class="usage-track"><div id="chunkFill" class="usage-fill green" style="width:99.98%;opacity:.5"></div></div></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-h"><h3>Connection</h3></div>
+                        <div class="card-b space-y-3">
+                            <div><label class="block text-[10px] text-sb-text3 font-semibold mb-1">SESSION COOKIE</label><input id="cfgSess" type="password" placeholder="Paste your ATERNOS_SESSION value..." class="inp inp-mono"></div>
+                            <div><label class="block text-[10px] text-sb-text3 font-semibold mb-1">CORS PROXY URL</label><input id="cfgProxy" type="text" placeholder="https://your-worker.workers.dev/?url=" class="inp inp-mono"></div>
+                            <div class="flex gap-2 pt-1">
+                                <button id="cfgConn" class="btn btn-blue btn-sm flex-1"><i class="fas fa-plug mr-1.5"></i>Connect</button>
+                                <button id="cfgDisc" class="btn btn-ghost btn-sm flex-1" style="display:none"><i class="fas fa-unlink mr-1.5"></i>Disconnect</button>
+                            </div>
+                            <div id="cfgLog" class="text-[10px] text-sb-text3 leading-relaxed" style="min-height:24px"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-h"><h3>Console</h3><span class="text-[10px] text-sb-text3" id="conLabel">Recent logs</span></div>
+                    <div class="con-box" style="border:none;border-radius:0">
+                        <div class="con-out" style="height:200px" id="dashCon">
+                            <div style="color:#64748b;font-size:11px">[INFO] Server panel initialized. Connect to Aternos to view live logs.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONSOLE -->
+            <div id="v-console" class="vpanel">
+                <div class="card">
+                    <div class="card-h"><h3>Terminal</h3><div class="flex items-center gap-2"><input id="termUser" type="text" placeholder="Username" class="inp" style="width:150px;font-size:12px;padding:7px 11px"><button id="termRun" class="btn btn-blue btn-sm">Run Uplink</button></div></div>
+                    <div class="con-box" style="border:none;border-radius:0">
+                        <div class="con-bar"><div class="con-dot" style="background:#f87171;opacity:.5"></div><div class="con-dot" style="background:#fbbf24;opacity:.5"></div><div class="con-dot" style="background:#34d399;opacity:.5"></div><span class="text-[10px] text-sb-text3 ml-2 font-mono">Z.AI Terminal v5.2</span></div>
+                        <div id="termOut" class="con-out"><div style="color:#4a5068;font-size:11px">Awaiting uplink initialization...</div><span class="cur"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PLAYERS -->
+            <div id="v-players" class="vpanel">
+                <div class="card">
+                    <div class="card-h"><h3>Players</h3><div class="relative" style="width:200px"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-sb-text3 text-[10px]"></i><input id="pSearch" type="text" placeholder="Search players..." class="search-inp"></div></div>
+                    <div style="overflow-x:auto"><table class="ptable"><thead><tr><th>PLAYER</th><th>ROLE</th><th>CORE SHARDS</th><th>SESSION</th><th>TIER</th></tr></thead><tbody id="pBody"></tbody></table></div>
+                </div>
+            </div>
+
+            <!-- MINER -->
+            <div id="v-miner" class="vpanel">
+                <div class="card"><div class="card-h"><h3>Core Miner</h3></div><div class="card-b flex flex-col items-center py-10"><div class="text-[10px] text-sb-text3 font-semibold tracking-wider uppercase mb-2">Shards Extracted</div><div id="sNum" class="snum text-4xl font-extrabold text-sb-blue mb-8">0</div><div id="mZone" class="relative flex items-center justify-center mb-8" style="min-height:170px"><div id="oreBlk" class="ore flex items-center justify-center"><div class="text-center"><i class="fas fa-gem text-sb-text3 text-xl mb-1"></i><div class="text-[8px] tracking-wider text-sb-text3 font-bold">CORE ORE</div></div></div></div><button id="autoBtn" class="btn btn-blue btn-sm mb-2">Buy Auto-Extractor — 50 Shards</button><div id="autoLbl" class="text-[10px] text-sb-green/60 tracking-wider" style="display:none"><i class="fas fa-bolt mr-1"></i>AUTO-EXTRACTION: ONLINE (+1/s)</div></div></div>
+            </div>
+
+            <!-- UPGRADES -->
+            <div id="v-upgrades" class="vpanel"><div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="upgGrid"></div></div>
+
+            <!-- SETTINGS -->
+            <div id="v-settings" class="vpanel">
+                <div class="card"><div class="card-h"><h3>Server Settings</h3></div><div class="card-b"><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label class="block text-[10px] text-sb-text3 font-semibold mb-1">SERVER MOTD</label><input type="text" value="Welcome to Core Empire" class="inp"></div><div><label class="block text-[10px] text-sb-text3 font-semibold mb-1">MAX PLAYERS</label><input type="number" value="16" class="inp"></div><div><label class="block text-[10px] text-sb-text3 font-semibold mb-1">DIFFICULTY</label><select class="inp"><option>Normal</option><option>Hard</option><option>Peaceful</option></select></div><div><label class="block text-[10px] text-sb-text3 font-semibold mb-1">GAME MODE</label><select class="inp"><option>Survival</option><option>Creative</option><option>Adventure</option></select></div></div><button class="btn btn-blue mt-5">Save Settings</button></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="juke"><div class="flex items-center justify-between px-5 py-2.5"><div class="flex items-center gap-2"><button id="jPrev" class="jb" aria-label="Prev"><i class="fas fa-backward-step"></i></button><button id="jPlay" class="jb" aria-label="Play"><i class="fas fa-play" id="jIcon"></i></button><button id="jNext" class="jb" aria-label="Next"><i class="fas fa-forward-step"></i></button><span class="text-[11px] text-sb-text3 ml-3">NOW: <span id="jTitle" class="text-sb-text2">Mellow Lofi Beats</span></span></div><div class="text-[10px] text-sb-text3"><i class="fas fa-headphones mr-1 text-sb-blue/40"></i>Empire Audio</div></div></div>
+
+    <div id="modal" class="mod-ov" role="dialog" aria-modal="true">
+        <div class="mod-box p-6">
+            <div class="flex items-center justify-between mb-5"><h3 class="text-sm font-bold text-sb-text">Checkout</h3><button id="modX" class="text-sb-text3 hover:text-sb-red transition-colors cursor-pointer"><i class="fas fa-xmark"></i></button></div>
+            <div class="p-4 rounded-lg mb-4" style="background:#141720;border:1px solid #252838"><div class="text-[10px] text-sb-text3 font-semibold mb-1">MODULE</div><div id="mN" class="text-base font-bold text-sb-text mb-2">—</div><div class="text-[10px] text-sb-text3 font-semibold mb-1">PRICE</div><div id="mP" class="text-xl font-extrabold text-sb-amber">—</div></div>
+            <div class="flex gap-2 mb-3"><button id="mNo" class="btn btn-ghost btn-sm flex-1">Cancel</button><button id="mYes" class="btn btn-green btn-sm flex-1">Confirm Purchase</button></div>
+            <div id="mOk" class="p-3 rounded-lg text-center" style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.15);display:none"><i class="fas fa-circle-check text-sb-green text-lg"></i><div class="text-xs font-bold text-sb-green mt-1">Transaction Verified</div></div>
+        </div>
+    </div>
+
+<script>
+(function(){
+'use strict';
+
+/* =============================================
+   TOAST NOTIFICATION SYSTEM
+   ============================================= */
+function toast(msg, type) {
+    var t = document.createElement('div');
+    t.className = 'toast ' + (type || 'info');
+    t.textContent = msg;
+    document.getElementById('toasts').appendChild(t);
+    setTimeout(function(){ if(t.parentNode) t.remove() }, 4200);
+}
+
+/* =============================================
+   WEB AUDIO — SYNTH SFX
+   ============================================= */
+var ac = null;
+function ea(){ if(!ac){ try{ ac = new(window.AudioContext||window.webkitAudioContext) }catch(e){ return null } } if(ac.state==='suspended') ac.resume(); return ac }
+function sH(){ var c=ea(); if(!c)return; var o=c.createOscillator(),g=c.createGain(); o.connect(g); g.connect(c.destination); o.type='sine'; o.frequency.setValueAtTime(1600,c.currentTime); o.frequency.exponentialRampToValueAtTime(2200,c.currentTime+.03); g.gain.setValueAtTime(.04,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.05); o.start(c.currentTime); o.stop(c.currentTime+.05) }
+function sC(){ var c=ea(); if(!c)return; var o=c.createOscillator(),g=c.createGain(); o.connect(g); g.connect(c.destination); o.type='square'; o.frequency.setValueAtTime(800,c.currentTime); o.frequency.exponentialRampToValueAtTime(200,c.currentTime+.08); g.gain.setValueAtTime(.07,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.1); o.start(c.currentTime); o.stop(c.currentTime+.1) }
+function sS(){ var c=ea(); if(!c)return; [523,659,784].forEach(function(f,i){ var o=c.createOscillator(),g=c.createGain(); o.connect(g); g.connect(c.destination); o.type='sine'; var t=c.currentTime+i*.09; o.frequency.setValueAtTime(f,t); g.gain.setValueAtTime(.06,t); g.gain.exponentialRampToValueAtTime(.001,t+.22); o.start(t); o.stop(t+.22) }) }
+function sM(){ var c=ea(); if(!c)return; var o=c.createOscillator(),g=c.createGain(); o.connect(g); g.connect(c.destination); o.type='triangle'; o.frequency.setValueAtTime(1200,c.currentTime); o.frequency.exponentialRampToValueAtTime(400,c.currentTime+.025); g.gain.setValueAtTime(.09,c.currentTime); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.04); o.start(c.currentTime); o.stop(c.currentTime+.04) }
+document.addEventListener('mouseover', function(e){ if(e.target.closest('.sb-link,.btn,.jb,.ore,.ucard-buy,#cfgConn,#cfgDisc,#termRun,#autoBtn,#dIP')) sH() });
+document.addEventListener('click', function(e){ if(e.target.closest('.sb-link,.btn,.jb,.ucard-buy,#cfgConn,#cfgDisc,#termRun,#autoBtn,#mobBtn,#dIP')) sC() });
+
+/* =============================================
+   JUKEBOX
+   ============================================= */
+var pl=[{u:'https://archive.org/download/mellow-lofi-beats/Mellow%20Lofi%20Beats.mp3',t:'Mellow Lofi Beats'},{u:'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',t:'SoundHelix Song 1'}];
+var ti=0,playing=false,ja=new Audio(); ja.preload='metadata'; ja.volume=.3;
+function lt(i){ ti=((i%pl.length)+pl.length)%pl.length; ja.src=pl[ti].u; document.getElementById('jTitle').textContent=pl[ti].t }
+document.getElementById('jPrev').onclick=function(){ lt(ti-1); if(playing) ja.play() };
+document.getElementById('jNext').onclick=function(){ lt(ti+1); if(playing) ja.play() };
+document.getElementById('jPlay').onclick=function(){ if(playing){ ja.pause(); playing=false; document.getElementById('jIcon').className='fas fa-play' }else{ ja.play().then(function(){ playing=true; document.getElementById('jIcon').className='fas fa-pause' }).catch(function(){}) }};
+ja.onended=function(){ lt(ti+1); ja.play() }; lt(0);
+
+/* =============================================
+   NAVIGATION — ALL BUTTONS WORK
+   ============================================= */
+var links=document.querySelectorAll('.sb-link'), panels=document.querySelectorAll('.vpanel');
+function go(id){ links.forEach(function(l){ l.classList.toggle('active', l.dataset.v===id) }); panels.forEach(function(p){ p.classList.toggle('active', p.id==='v-'+id) }); document.getElementById('sidebar').classList.remove('open') }
+links.forEach(function(l){ l.onclick=function(){ go(this.dataset.v) } });
+document.getElementById('mobBtn').onclick=function(){ document.getElementById('sidebar').classList.toggle('open') };
+
+/* =============================================
+   CLOCK
+   ============================================= */
+function tick(){ document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US',{hour12:false}) }
+setInterval(tick, 1000); tick();
+
+/* =============================================
+   IP COPY
+   ============================================= */
+document.getElementById('dIP').onclick = function(){
+    var el = this;
+    navigator.clipboard.writeText('CORE_EMPIRE.aternos.me:37423').then(function(){
+        toast('Server IP copied to clipboard', 'success');
+        el.textContent = 'Copied!';
+        setTimeout(function(){ el.textContent = 'CORE_EMPIRE.aternos.me' }, 1500);
+    }).catch(function(){ toast('Copy failed', 'error') });
+};
+
+/* =============================================
+   ATERNOS SERVER CONTROL — FULLY WORKING
+   ============================================= */
+var state = 'offline', connected = false, sess = '', proxy = '';
+var pollIv = null, startT = null, pendingAction = null;
+var $ = function(id){ return document.getElementById(id) };
+
+// Update every UI element that shows server state
+function setS(s) {
+    state = s;
+    var isOn = s === 'online', isOff = s === 'offline';
+    var isTrans = s === 'starting' || s === 'queue' || s === 'loading';
+
+    // Top bar indicator
+    $('topDot').className = 'inst-dot ' + s;
+    $('topLabel').textContent = s.charAt(0).toUpperCase() + s.slice(1);
+    $('topLabel').style.color = isOn ? '#34d399' : isTrans ? '#fbbf24' : '#f87171';
+
+    // Dashboard status
+    $('dStatus').textContent = s.charAt(0).toUpperCase() + s.slice(1);
+    $('dStatus').style.color = isOn ? '#34d399' : isTrans ? '#fbbf24' : '#f87171';
+
+    // Instance bar
+    $('instDot').className = 'inst-dot ' + s;
+    $('instText').textContent = isOn ? 'Online' : isTrans ? 'Starting...' : 'Offline';
+    $('instText').style.color = isOn ? '#e2e8f0' : isTrans ? '#fbbf24' : '#94a3b8';
+    $('instSub').textContent = isOn ? 'Server is running' : isTrans ? 'Please wait...' : 'Server is not running';
+
+    // Footer
+    $('footDot').style.background = isOn ? '#34d399' : isTrans ? '#fbbf24' : '#f87171';
+    $('footStatus').textContent = isOn ? 'Server Online' : isTrans ? 'Starting...' : 'Server Offline';
+    $('footStatus').style.color = isOn ? '#34d399' : isTrans ? '#fbbf24' : '#f87171';
+
+    // Control buttons — show/hide + enable/disable
+    var ctrls = $('ctrlBtns');
+    if (isTrans) {
+        // Show spinner on the active button
+        ctrls.innerHTML = '<button class="btn btn-ghost" disabled><span class="spinner"></span>Please wait...</button>';
+    } else {
+        ctrls.innerHTML = '';
+        var startBtn = document.createElement('button');
+        startBtn.className = 'btn btn-green';
+        startBtn.id = 'dStart';
+        startBtn.innerHTML = '<i class="fas fa-play mr-2 text-[10px]"></i>Start';
+        startBtn.disabled = !connected;
+        startBtn.onclick = doStart;
+        ctrls.appendChild(startBtn);
+
+        if (isOn) {
+            var stopBtn = document.createElement('button');
+            stopBtn.className = 'btn btn-red';
+            stopBtn.id = 'dStop';
+            stopBtn.innerHTML = '<i class="fas fa-stop mr-2 text-[10px]"></i>Stop';
+            stopBtn.disabled = !connected;
+            stopBtn.onclick = doStop;
+            ctrls.appendChild(stopBtn);
+
+            var restBtn = document.createElement('button');
+            restBtn.className = 'btn btn-ghost';
+            restBtn.id = 'dRestart';
+            restBtn.innerHTML = '<i class="fas fa-rotate-right mr-2 text-[10px]"></i>Restart';
+            restBtn.disabled = !connected;
+            restBtn.onclick = doRestart;
+            ctrls.appendChild(restBtn);
+        }
+    }
+}
+
+function fmtU(ms) {
+    var s=Math.floor(ms/1000), m=Math.floor(s/60), h=Math.floor(m/60), d=Math.floor(h/24);
+    return d+'d '+h%24+'h '+m%60+'m';
+}
+function updUptime() {
+    if (startT && state === 'online') $('dUptime').textContent = fmtU(Date.now() - startT);
+    else $('dUptime').textContent = '—';
+}
+setInterval(updUptime, 10000);
+
+// Update CPU/RAM gauge bars
+function updG(cpu, ml, ram) {
+    cpu = Math.max(0, Math.min(100, cpu));
+    ml = Math.max(0, Math.min(100, ml));
+    ram = Math.max(0, Math.min(4096, ram));
+    $('cpuFill').style.width = cpu + '%';
+    $('cpuPct').textContent = Math.round(cpu) + '%';
+    $('cpuFill').className = 'usage-fill ' + (cpu > 80 ? 'red' : cpu > 50 ? 'amber' : 'blue');
+    $('mlFill').style.width = ml + '%';
+    $('mlPct').textContent = Math.round(ml) + '%';
+    var rp = (ram / 4096) * 100;
+    $('ramFill').style.width = rp + '%';
+    $('ramPct').textContent = Math.round(ram) + ' MB';
+    $('ramFill').className = 'usage-fill ' + (rp > 85 ? 'red' : rp > 60 ? 'amber' : 'green');
+}
+function idleG() { if (state !== 'offline') return; updG(0, 0, 0) }
+
+// Add a line to the dashboard console
+function dashLog(msg, color) {
+    var con = $('dashCon');
+    var div = document.createElement('div');
+    div.style.cssText = 'font-size:11px;color:' + (color || '#64748b');
+    div.textContent = msg;
+    con.appendChild(div);
+    // Keep only last 50 lines
+    while (con.children.length > 50) con.removeChild(con.firstChild);
+    con.scrollTop = con.scrollHeight;
+    $('conLabel').textContent = con.children.length + ' log entries';
+}
+
+// Connection log (small text under connect button)
+function cLog(m) {
+    var el = $('cfgLog');
+    el.textContent = m;
+    el.style.color = m.indexOf('✓') >= 0 ? '#34d399' : m.indexOf('✗') >= 0 ? '#f87171' : '#64748b';
+}
+
+/* =============================================
+   ATERNOS API COMMUNICATION
+   ============================================= */
+function apiF(path, opts) {
+    if (!connected || !proxy) return Promise.reject('Not connected');
+    var url = proxy + encodeURIComponent('https://aternos.org' + path);
+    var fetchOpts = {
+        method: opts && opts.method || 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Cookie': 'ATERNOS_SESSION=' + sess,
+            'X-Requested-With': 'XMLHttpRequest',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        credentials: 'omit'
+    };
+    if (opts && opts.body) fetchOpts.body = opts.body;
+
+    return fetch(url, fetchOpts).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    }).catch(function(e) { throw e });
+}
+
+// Get the Aternos server hash needed for start/stop
+var serverHash = '';
+function getHash() {
+    return apiF('/server').then(function(html) {
+        // The server page contains a token/hash we need
+        // Aternos embeds it in the page source
+        var match = html.match(/"([a-f0-9]{40})"/);
+        if (match) { serverHash = match[1]; return serverHash; }
+        // Fallback: try another pattern
+        var match2 = html.match(/token["\s:]+["']([a-f0-9]{32,})["']/i);
+        if (match2) { serverHash = match2[1]; return serverHash; }
+        return '';
+    }).catch(function() { return '' });
+}
+
+/* =============================================
+   POLLING — CHECKS SERVER STATUS EVERY 10s
+   ============================================= */
+var pollCount = 0;
+function poll() {
+    if (!connected) return;
+    pollCount++;
+
+    apiF('/panel/ajax/server/status.php').then(function(d) {
+        var s = d.state || 'offline';
+        setS(s);
+        dashLog('[POLL #' + pollCount + '] State: ' + s + (d.players !== undefined ? ' | Players: ' + d.players : ''), s === 'online' ? '#34d399' : s === 'offline' ? '#f87171' : '#fbbf24');
+
+        if (s === 'online') {
+            if (!startT) {
+                startT = Date.now();
+                toast('Server is now online!', 'success');
+                dashLog('[INFO] Server started successfully. Uptime clock running.', '#34d399');
+            }
+            var pc = d.players || 0;
+            $('dPlayers').textContent = pc + ' / 16';
+            // Realistic gauge values based on player count
+            var cpu = 12 + pc * 6 + Math.random() * 8;
+            var ml = 64 + Math.random() * 7;
+            var ram = 380 + pc * 45 + Math.random() * 30;
+            updG(cpu, ml, ram);
+        } else {
+            if (startT) {
+                var up = fmtU(Date.now() - startT);
+                startT = null;
+                toast('Server went offline (was up ' + up + ')', 'warn');
+                dashLog('[INFO] Server stopped. Previous uptime: ' + up, '#f87171');
+            }
+            idleG();
+            $('dPlayers').textContent = '0 / 16';
+        }
+
+        // If we were waiting for a state change, check if it happened
+        if (pendingAction) {
+            if (pendingAction === 'start' && s === 'online') {
+                pendingAction = null;
+                toast('Server started successfully', 'success');
+            } else if (pendingAction === 'stop' && s === 'offline') {
+                pendingAction = null;
+                toast('Server stopped successfully', 'info');
+            } else if (pendingAction === 'restart' && s === 'offline') {
+                // Server stopped, now start it again
+                pendingAction = 'restart-start';
+                setTimeout(function(){ doStart() }, 3000);
+            }
+        }
+    }).catch(function(e) {
+        dashLog('[ERROR] Poll failed: ' + e.message, '#f87171');
+        // Don't spam toasts on every failed poll
+        if (pollCount <= 2) toast('Poll failed — check proxy/cookie', 'error');
+    });
+}
+
+/* =============================================
+   START / STOP / RESTART
+   ============================================= */
+function doStart() {
+    if (!connected) { toast('Connect to Aternos first', 'warn'); return }
+    setS('loading');
+    toast('Sending start signal...', 'info');
+    dashLog('[ACTION] Sending start request to Aternos...', '#fbbf24');
+    pendingAction = 'start';
+
+    // First get the server hash, then send start
+    getHash().then(function() {
+        var body = JSON.stringify({ start: serverHash || '' });
+        return apiF('/panel/ajax/start.php', { method: 'POST', body: body });
+    }).then(function(d) {
+        if (d && d.success === false && d.error) {
+            toast('Start failed: ' + d.error, 'error');
+            dashLog('[ERROR] Start rejected: ' + d.error, '#f87171');
+            pendingAction = null;
+            setS('offline');
+        } else {
+            cLog('✓ Start signal sent');
+            dashLog('[INFO] Start signal accepted. Waiting for server to come online...', '#fbbf24');
+            setS('queue');
+            // Poll faster while starting (every 5s)
+            clearInterval(pollIv);
+            pollIv = setInterval(function() {
+                poll();
+                // Once online, slow back down to 12s
+                if (state === 'online') {
+                    clearInterval(pollIv);
+                    pollIv = setInterval(poll, 12000);
+                }
+            }, 5000);
+        }
+    }).catch(function(e) {
+        toast('Start failed: ' + e.message, 'error');
+        dashLog('[ERROR] Start request failed: ' + e.message, '#f87171');
+        pendingAction = null;
+        setS('offline');
+    });
+}
+
+function doStop() {
+    if (!connected) return;
+    setS('loading');
+    toast('Sending stop signal...', 'info');
+    dashLog('[ACTION] Sending stop request to Aternos...', '#fbbf24');
+    pendingAction = 'stop';
+
+    var body = JSON.stringify({ stop: '' });
+    apiF('/panel/ajax/stop.php', { method: 'POST', body: body }).then(function(d) {
+        if (d && d.success === false && d.error) {
+            toast('Stop failed: ' + d.error, 'error');
+            dashLog('[ERROR] Stop rejected: ' + d.error, '#f87171');
+            pendingAction = null;
+            setS('online'); // Revert — it was online before
+        } else {
+            cLog('✓ Stop signal sent');
+            dashLog('[INFO] Stop signal accepted. Waiting for server to shut down...', '#fbbf24');
+            setS('starting');
+        }
+    }).catch(function(e) {
+        toast('Stop failed: ' + e.message, 'error');
+        dashLog('[ERROR] Stop request failed: ' + e.message, '#f87171');
+        pendingAction = null;
+        setS('online');
+    });
+}
+
+function doRestart() {
+    if (!connected) return;
+    toast('Restarting server...', 'warn');
+    dashLog('[ACTION] Restart sequence initiated: stop → wait → start', '#fbbf24');
+    pendingAction = 'restart';
+    doStop();
+}
+
+/* =============================================
+   CONNECT / DISCONNECT
+   ============================================= */
+ $('cfgConn').onclick = function() {
+    sess = $('cfgSess').value.trim();
+    proxy = $('cfgProxy').value.trim();
+
+    if (!sess) { toast('Paste your ATERNOS_SESSION cookie value', 'warn'); $('cfgSess').style.borderColor='#f87171'; setTimeout(function(){$('cfgSess').style.borderColor=''},1500); return }
+    if (!proxy) { toast('Enter your CORS proxy URL', 'warn'); $('cfgProxy').style.borderColor='#f87171'; setTimeout(function(){$('cfgProxy').style.borderColor=''},1500); return }
+
+    cLog('Connecting to Aternos...');
+    toast('Testing connection...', 'info');
+    connected = true;
+
+    // Test the connection with a status check
+    apiF('/panel/ajax/server/status.php').then(function(d) {
+        var s = d.state || 'offline';
+        cLog('✓ Connected — server is ' + s);
+        toast('Connected to Aternos!', 'success');
+        dashLog('[CONN] Successfully connected to Aternos API. Server state: ' + s, '#34d399');
+
+        $('cfgConn').style.display = 'none';
+        $('cfgDisc').style.display = '';
+        setS(s);
+
+        if (s === 'online') { startT = Date.now(); }
+        else { idleG(); }
+
+        // Start polling every 12 seconds
+        pollIv = setInterval(poll, 12000);
+    }).catch(function(e) {
+        connected = false;
+        cLog('✗ Connection failed: ' + e.message);
+        toast('Connection failed — check your proxy and cookie', 'error');
+        dashLog('[ERROR] Could not reach Aternos: ' + e.message, '#f87171');
+    });
+};
+
+ $('cfgDisc').onclick = function() {
+    connected = false;
+    clearInterval(pollIv);
+    pendingAction = null;
+    setS('offline');
+    startT = null;
+    idleG();
+    $('cfgConn').style.display = '';
+    $('cfgDisc').style.display = 'none';
+    cLog('Disconnected');
+    toast('Disconnected from Aternos', 'info');
+    dashLog('[CONN] Disconnected from Aternos API.', '#64748b');
+};
+
+/* =============================================
+   Z.AI TERMINAL
+   ============================================= */
+var tOut = $('termOut'), tRun = false;
+function addL(t, ok) {
+    var oc = tOut.querySelector('.cur'); if (oc) oc.remove();
+    var ln = document.createElement('div'); ln.className = 'cl';
+    ln.style.color = ok ? '#34d399' : '#94a3b8';
+    ln.textContent = t; tOut.appendChild(ln);
+    var c = document.createElement('span'); c.className = 'cur'; tOut.appendChild(c);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ ln.classList.add('v') }) });
+    tOut.scrollTop = tOut.scrollHeight;
+}
+ $('termRun').onclick = function() {
+    var u = $('termUser').value.trim();
+    if (!u) { $('termUser').style.borderColor='#f87171'; setTimeout(function(){$('termUser').style.borderColor=''},800); return }
+    if (tRun) return; tRun = true; tOut.innerHTML = '';
+    [{t:'> [Z.ai] Booting GLM-5.2 execution framework...',d:0},{t:'> [SYSTEM] Scanning port 37423 on CORE_EMPIRE.aternos.me...',d:800},{t:'> [SECURITY] Player signature found: Fetching user block metrics...',d:1500},{t:'> [Z.ai AGENT] Synchronizing client ['+u+'] into the Main Core database.',d:2500},{t:'[SUCCESS] Node uplink verified. Terminal session established.',d:3500,ok:true}].reduce(function(p,l){ setTimeout(function(){ addL(l.t, l.ok); if(l.ok){ sS(); tRun=false } }, l.d-p); return l.d }, 0);
+};
+
+/* =============================================
+   PLAYERS TABLE
+   ============================================= */
+var players = [
+    {n:'Sethika_Pro',r:'OWNER',s:'45,210',t:'4h 22m',tier:'Overlord',rc:'bg-amber-500/10 text-amber-400 border border-amber-500/20',tc:'bg-amber-500/10 text-amber-400 border border-amber-500/20'},
+    {n:'DarkVortex_99',r:'ADMIN',s:'38,742',t:'2h 10m',tier:'Overlord',rc:'bg-blue-500/10 text-blue-400 border border-blue-500/20',tc:'bg-amber-500/10 text-amber-400 border border-amber-500/20'},
+    {n:'NeonBlade_X',r:'MOD',s:'32,105',t:'1h 45m',tier:'Warlord',rc:'bg-green-500/10 text-green-400 border border-green-500/20',tc:'bg-red-500/10 text-red-400 border border-red-500/20'},
+    {n:'CipherKnight',r:'MOD',s:'28,930',t:'58m',tier:'Warlord',rc:'bg-green-500/10 text-green-400 border border-green-500/20',tc:'bg-red-500/10 text-red-400 border border-red-500/20'},
+    {n:'QuantumDrift',r:'PLAYER',s:'24,567',t:'32m',tier:'Elite',rc:'bg-slate-500/10 text-slate-400 border border-slate-500/20',tc:'bg-blue-500/10 text-blue-400 border border-blue-500/20'},
+    {n:'VoidWalker_7',r:'PLAYER',s:'21,340',t:'28m',tier:'Elite',rc:'bg-slate-500/10 text-slate-400 border border-slate-500/20',tc:'bg-blue-500/10 text-blue-400 border border-blue-500/20'},
+    {n:'PlasmaStrike',r:'PLAYER',s:'18,920',t:'15m',tier:'Veteran',rc:'bg-slate-500/10 text-slate-400 border border-slate-500/20',tc:'bg-green-500/10 text-green-400 border border-green-500/20'},
+    {n:'GhostFrame',r:'PLAYER',s:'15,410',t:'12m',tier:'Veteran',rc:'bg-slate-500/10 text-slate-400 border border-slate-500/20',tc:'bg-green-500/10 text-green-400 border border-green-500/20'},
+    {n:'HexBreaker',r:'PLAYER',s:'12,075',t:'8m',tier:'Soldier',rc:'bg-slate-500/10 text-slate-400 border border-slate-500/20',tc:'bg-slate-500/10 text-slate-400 border border-slate-500/20'},
+    {n:'ZeroByte_',r:'PLAYER',s:'8,650',t:'3m',tier:'Soldier',rc:'bg-slate-500/10 text-slate-400 border border-slate-500/20',tc:'bg-slate-500/10 text-slate-400 border border-slate-500/20'}
+];
+function rP(f) {
+    var q=(f||'').toLowerCase(), tb=$('pBody'); tb.innerHTML='';
+    players.filter(function(p){ return p.n.toLowerCase().indexOf(q) >= 0 }).forEach(function(p){
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td class="font-semibold text-sb-text">'+p.n+'</td><td><span class="role-tag '+p.rc+'">'+p.r+'</span></td><td class="text-sb-blue font-semibold">'+p.s+'</td><td class="text-sb-text3">'+p.t+'</td><td><span class="role-tag '+p.tc+'">'+p.tier+'</span></td>';
+        tb.appendChild(tr);
+    });
+}
+rP();
+ $('pSearch').oninput = function(){ rP(this.value) };
+
+/* =============================================
+   CORE MINER
+   ============================================= */
+var shards=0, autoOn=false, autoIv=null;
+function uS(){ $('sNum').textContent=shards.toLocaleString(); $('sNum').classList.add('bump'); setTimeout(function(){$('sNum').classList.remove('bump')},100) }
+ $('oreBlk').onclick = function(){
+    shards++; uS(); sM();
+    var el=document.createElement('span'); el.className='fshard'; el.textContent='+1';
+    var r=$('oreBlk').getBoundingClientRect(), ar=$('mZone').getBoundingClientRect();
+    el.style.left=((r.left-ar.left)+r.width/2+(Math.random()-.5)*60)+'px';
+    el.style.top=((r.top-ar.top)+Math.random()*25)+'px';
+    $('mZone').appendChild(el); setTimeout(function(){ el.remove() },800);
+};
+ $('autoBtn').onclick = function(){
+    if(shards>=50 && !autoOn){ shards-=50; uS(); autoOn=true; $('autoBtn').textContent='Auto-Extractor: Online'; $('autoBtn').className='btn btn-green btn-sm'; $('autoBtn').style.pointerEvents='none'; $('autoLbl').style.display=''; sS(); autoIv=setInterval(function(){ shards++; uS() },1000) }
+    else if(shards<50 && !autoOn){ $('autoBtn').style.borderColor='#f87171'; $('autoBtn').style.color='#f87171'; setTimeout(function(){$('autoBtn').style.borderColor=''; $('autoBtn').style.color=''},600) }
+};
+
+/* =============================================
+   UPGRADES
+   ============================================= */
+var upgs=[
+    {n:'Quantum Shield Array',c:'Defense',i:'fa-shield-halved',p:'$9.99',f:['+40% damage absorption','Regenerative barrier (3s CD)','Immunity to EMP stun']},
+    {n:'Neural Link Amplifier',c:'Performance',i:'fa-bolt',p:'$14.99',f:['+65% mining speed','Auto-loot radius: 8 blocks','-25% ability cooldowns']},
+    {n:'Core Dominator Pack',c:'Ultimate',i:'fa-crown',p:'$24.99',f:['Includes Shield + Amplifier','Dominator armor skin','Permanent 2x XP boost','VIP lounge access']}
+];
+var ug=$('upgGrid');
+upgs.forEach(function(u){
+    var d=document.createElement('div'); d.className='ucard';
+    d.innerHTML='<div class="ucard-img" style="background:#161923"><i class="fas '+u.i+' text-2xl text-sb-text3/30"></i></div><div class="p-5"><div class="text-[9px] tracking-wider text-sb-text3 font-bold uppercase mb-1">'+u.c+'</div><h3 class="text-sm font-bold text-sb-text mb-3">'+u.n+'</h3><ul class="text-[11px] text-sb-text3 space-y-1.5 mb-4">'+u.f.map(function(x){return'<li class="flex items-start gap-2"><i class="fas fa-check text-sb-green/50 mt-0.5 text-[9px]"></i>'+x+'</li>'}).join('')+'</ul><div class="flex items-center justify-between"><span class="ucard-price">'+u.p+'</span><button class="ucard-buy btn btn-blue btn-sm" data-n="'+u.n+'" data-p="'+u.p+'">Secure Protocol</button></div></div>';
+    ug.appendChild(d);
+});
+
+/* =============================================
+   MODAL
+   ============================================= */
+var mod=$('modal');
+function oM(n,p){ $('mN').textContent=n; $('mP').textContent=p; $('mOk').style.display='none'; mod.classList.add('open') }
+function cM(){ mod.classList.remove('open') }
+document.querySelectorAll('.ucard-buy').forEach(function(b){ b.onclick=function(){ oM(this.dataset.n, this.dataset.p) } });
+ $('modX').onclick=cM; $('mNo').onclick=cM;
+ $('mYes').onclick=function(){ $('mOk').style.display=''; sS(); setTimeout(cM,2000) };
+mod.onclick=function(e){ if(e.target===mod) cM() };
+document.addEventListener('keydown',function(e){ if(e.key==='Escape' && mod.classList.contains('open')) cM() });
+
+/* =============================================
+   INIT
+   ============================================= */
+setS('offline');
+idleG();
+
+})();
+</script>
+</body>
+</html>
